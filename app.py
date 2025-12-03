@@ -27,7 +27,7 @@ class Application:
     
     def __init__(self):
         """Initialize application."""
-        logger.separator("LED COMMANDER v3.0 - Initialization")
+        logger.separator("LED COMMANDER v3.0 - Initialization (ELK-BLEDOM UI)")
         
         # Initialize services
         self.bridge = BleApplicationBridge()
@@ -41,14 +41,18 @@ class Application:
             # Create and show UI
             self.ui = DashboardView()
             
-            # Set up event handlers
+            # Set up event handlers for color/mode/brightness/speed
             self.ui.controller.on_color_changed = self._handle_color_change
             self.ui.controller.on_mode_changed = self._handle_mode_change
             self.ui.controller.on_brightness_changed = self._handle_brightness_change
+            self.ui.controller.on_speed_changed = self._handle_speed_change
             
-            # Initialize BLE
-            self.bridge.on_ui_update = self._handle_device_status_update
+            # Initialize BLE bridge with status callback
+            self.bridge.on_status_change = self._handle_device_status_update
             self.bridge.initialize()
+            
+            # Start periodic status updates
+            self._schedule_status_update()
             
             logger.success("Application started successfully")
             
@@ -69,22 +73,44 @@ class Application:
     def _handle_mode_change(self, mode: ColorMode):
         """Handle mode change from UI."""
         self.bridge.set_mode(mode)
+        logger.debug(f"Mode changed: {mode.value}")
     
     def _handle_brightness_change(self, brightness: float):
         """Handle brightness change from UI."""
         self.bridge.set_brightness(brightness)
         logger.debug(f"Brightness set: {brightness * 100:.0f}%")
     
+    def _handle_speed_change(self, speed: int):
+        """Handle speed change from UI."""
+        self.bridge.set_speed(speed)
+        logger.debug(f"Speed set: {speed}")
+    
     def _handle_device_status_update(self, status: DeviceStatus):
         """Handle device status update."""
         if self.ui:
             self.ui.update_device_status(status)
     
+    def _schedule_status_update(self):
+        """Schedule periodic status updates from BLE controller."""
+        if self.ui and self.bridge and hasattr(self.bridge, 'controller'):
+            try:
+                status = self.bridge.controller.status
+                self._handle_device_status_update(status)
+            except Exception as e:
+                logger.debug(f"Status update failed: {e}")
+        
+        # Schedule next update in 1 second
+        if self.ui and self.ui.winfo_exists():
+            self.ui.after(1000, self._schedule_status_update)
+    
     def shutdown(self):
         """Shutdown application cleanly."""
         logger.info("Shutting down...")
-        self.bridge.save_preferences()
-        self.bridge.shutdown()
+        try:
+            self.bridge.save_preferences()
+            self.bridge.shutdown()
+        except Exception as e:
+            logger.warning(f"Shutdown error: {e}")
         logger.separator("Application terminated")
 
 

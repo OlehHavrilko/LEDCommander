@@ -600,3 +600,325 @@ class ColorWheelPicker(ctk.CTkCanvas):
             x2, y2,
             fill=color, outline=color
         )
+
+
+# ======================== NEW COMPONENTS FOR ELK-BLEDOM UI ========================
+
+class NavButton(ctk.CTkButton):
+    """Navigation button for left sidebar (Adjust, Style, Schedule, Connect)."""
+    
+    def __init__(
+        self,
+        parent,
+        text: str,
+        icon: str = "○",
+        on_click: Optional[Callable] = None,
+        **kwargs
+    ):
+        super().__init__(parent, **kwargs)
+        self.text_value = text
+        self.icon = icon
+        self.on_click = on_click
+        self.is_selected = False
+        
+        # Configure button
+        self.configure(
+            text=f"{icon}  {text}",
+            font=("Arial", 12, "bold"),
+            text_color="#e0e0e0",
+            fg_color="#2b2b2b",
+            hover_color="#3a3a3a",
+            border_width=0,
+            height=45,
+            command=self._handle_click
+        )
+    
+    def _handle_click(self):
+        """Handle button click."""
+        if self.on_click:
+            self.on_click(self.text_value)
+    
+    def set_selected(self, selected: bool):
+        """Set button as selected/active."""
+        self.is_selected = selected
+        if selected:
+            self.configure(
+                fg_color="#ff6b6b",
+                text_color="#000000",
+                font=("Arial", 12, "bold")
+            )
+        else:
+            self.configure(
+                fg_color="#2b2b2b",
+                text_color="#e0e0e0",
+                font=("Arial", 12, "bold")
+            )
+
+
+class EffectListItem(ctk.CTkFrame):
+    """Effect/style list item with selection highlight."""
+    
+    def __init__(
+        self,
+        parent,
+        effect_name: str,
+        effect_id: int = 0,
+        on_select: Optional[Callable[[int], None]] = None,
+        selected: bool = False,
+        **kwargs
+    ):
+        super().__init__(parent, **kwargs)
+        self.effect_name = effect_name
+        self.effect_id = effect_id
+        self.on_select = on_select
+        self.is_selected = selected
+        
+        # Configure frame
+        self.configure(
+            fg_color="#2b2b2b",
+            border_width=1,
+            border_color="#444444",
+            height=50,
+            corner_radius=6
+        )
+        self.pack_propagate(False)
+        
+        # Create content
+        self._create_widgets()
+        self._update_appearance()
+    
+    def _create_widgets(self):
+        """Create list item widgets."""
+        # Main frame with click handler
+        main_frame = ctk.CTkFrame(self, fg_color="transparent")
+        main_frame.pack(fill="both", expand=True, padx=10, pady=8)
+        main_frame.bind("<Button-1>", self._on_click)
+        
+        # Effect name label
+        self.name_label = ctk.CTkLabel(
+            main_frame,
+            text=self.effect_name,
+            font=("Arial", 11, "bold"),
+            text_color="#e0e0e0"
+        )
+        self.name_label.pack(anchor="w")
+        self.name_label.bind("<Button-1>", self._on_click)
+        
+        # Selection indicator
+        self.indicator = ctk.CTkLabel(
+            main_frame,
+            text="",
+            text_color="#ff6b6b",
+            font=("Arial", 10, "bold")
+        )
+        self.indicator.pack(anchor="w", pady=(2, 0))
+    
+    def _on_click(self, event=None):
+        """Handle click on list item."""
+        self.set_selected(True)
+        if self.on_select:
+            self.on_select(self.effect_id)
+    
+    def set_selected(self, selected: bool):
+        """Set item as selected."""
+        self.is_selected = selected
+        self._update_appearance()
+    
+    def _update_appearance(self):
+        """Update visual appearance based on selection state."""
+        if self.is_selected:
+            self.configure(fg_color="#1a1a1a", border_color="#ff6b6b")
+            self.name_label.configure(text_color="#ffffff")
+            self.indicator.configure(text="► SELECTED")
+        else:
+            self.configure(fg_color="#2b2b2b", border_color="#444444")
+            self.name_label.configure(text_color="#e0e0e0")
+            self.indicator.configure(text="")
+
+
+class ScheduleCard(ctk.CTkFrame):
+    """Schedule card for On/Off scheduling."""
+    
+    def __init__(
+        self,
+        parent,
+        title: str = "Schedule On",
+        on_time_change: Optional[Callable[[str], None]] = None,
+        on_day_toggle: Optional[Callable[[str, bool], None]] = None,
+        **kwargs
+    ):
+        super().__init__(parent, **kwargs)
+        self.title = title
+        self.on_time_change = on_time_change
+        self.on_day_toggle = on_day_toggle
+        self.selected_days = set()
+        
+        self.configure(
+            fg_color="#2b2b2b",
+            border_width=1,
+            border_color="#444444",
+            corner_radius=8
+        )
+        
+        self._create_widgets()
+    
+    def _create_widgets(self):
+        """Create schedule card widgets."""
+        # Title
+        title_label = ctk.CTkLabel(
+            self,
+            text=self.title,
+            font=("Arial", 13, "bold"),
+            text_color="#e0e0e0"
+        )
+        title_label.pack(anchor="w", padx=12, pady=(12, 8))
+        
+        # Time input frame
+        time_frame = ctk.CTkFrame(self, fg_color="transparent")
+        time_frame.pack(fill="x", padx=12, pady=8)
+        
+        ctk.CTkLabel(time_frame, text="Time:", font=("Arial", 10)).pack(side="left", padx=(0, 8))
+        
+        self.time_entry = ctk.CTkEntry(
+            time_frame,
+            placeholder_text="HH:MM",
+            width=80,
+            font=("Arial", 10)
+        )
+        self.time_entry.pack(side="left", padx=4)
+        self.time_entry.bind("<KeyRelease>", self._on_time_change)
+        
+        # Day toggles
+        days_frame = ctk.CTkFrame(self, fg_color="transparent")
+        days_frame.pack(fill="x", padx=12, pady=(8, 12))
+        
+        ctk.CTkLabel(days_frame, text="Days:", font=("Arial", 10)).pack(side="left", padx=(0, 8))
+        
+        self.day_buttons = {}
+        for day in ["MO", "TU", "WE", "TH", "FR", "SA", "SU"]:
+            btn = ctk.CTkButton(
+                days_frame,
+                text=day,
+                width=32,
+                height=28,
+                font=("Arial", 9, "bold"),
+                fg_color="#3a3a3a",
+                hover_color="#4a4a4a",
+                command=lambda d=day: self._toggle_day(d)
+            )
+            btn.pack(side="left", padx=2)
+            self.day_buttons[day] = btn
+    
+    def _on_time_change(self, event=None):
+        """Handle time input change."""
+        if self.on_time_change:
+            self.on_time_change(self.time_entry.get())
+    
+    def _toggle_day(self, day: str):
+        """Toggle day selection."""
+        if day in self.selected_days:
+            self.selected_days.remove(day)
+            self.day_buttons[day].configure(fg_color="#3a3a3a")
+        else:
+            self.selected_days.add(day)
+            self.day_buttons[day].configure(fg_color="#ff6b6b")
+        
+        if self.on_day_toggle:
+            self.on_day_toggle(day, day in self.selected_days)
+    
+    def get_time(self) -> str:
+        """Get scheduled time."""
+        return self.time_entry.get()
+    
+    def get_days(self) -> set:
+        """Get selected days."""
+        return self.selected_days.copy()
+
+
+class DeviceListItem(ctk.CTkFrame):
+    """Device item in connection list."""
+    
+    def __init__(
+        self,
+        parent,
+        device_name: str,
+        device_mac: str,
+        is_connected: bool = False,
+        on_connect: Optional[Callable] = None,
+        on_delete: Optional[Callable] = None,
+        **kwargs
+    ):
+        super().__init__(parent, **kwargs)
+        self.device_name = device_name
+        self.device_mac = device_mac
+        self.is_connected = is_connected
+        self.on_connect = on_connect
+        self.on_delete = on_delete
+        
+        self.configure(
+            fg_color="#2b2b2b",
+            border_width=1,
+            border_color="#444444",
+            corner_radius=8
+        )
+        
+        self._create_widgets()
+    
+    def _create_widgets(self):
+        """Create device list item widgets."""
+        # Left: device info
+        left_frame = ctk.CTkFrame(self, fg_color="transparent")
+        left_frame.pack(side="left", fill="both", expand=True, padx=12, pady=10)
+        
+        # Device name
+        ctk.CTkLabel(
+            left_frame,
+            text=self.device_name,
+            font=("Arial", 12, "bold"),
+            text_color="#e0e0e0"
+        ).pack(anchor="w")
+        
+        # MAC address and status
+        info_text = f"MAC: {self.device_mac} | {'✓ Connected' if self.is_connected else '○ Disconnected'}"
+        info_color = "#00ff00" if self.is_connected else "#ff6b6b"
+        ctk.CTkLabel(
+            left_frame,
+            text=info_text,
+            font=("Arial", 9),
+            text_color=info_color
+        ).pack(anchor="w", pady=(2, 0))
+        
+        # Right: buttons
+        right_frame = ctk.CTkFrame(self, fg_color="transparent")
+        right_frame.pack(side="right", padx=12, pady=10)
+        
+        # Connect/Disconnect button
+        btn_text = "Disconnect" if self.is_connected else "Connect"
+        btn_cmd = self.on_connect if self.on_connect else lambda: None
+        ctk.CTkButton(
+            right_frame,
+            text=btn_text,
+            width=100,
+            font=("Arial", 10, "bold"),
+            fg_color="#ff6b6b" if self.is_connected else "#3a3a3a",
+            command=btn_cmd
+        ).pack(side="left", padx=4)
+        
+        # Delete button
+        ctk.CTkButton(
+            right_frame,
+            text="Delete",
+            width=80,
+            font=("Arial", 10),
+            fg_color="#3a3a3a",
+            hover_color="#4a4a4a",
+            command=self.on_delete if self.on_delete else lambda: None
+        ).pack(side="left", padx=2)
+    
+    def update_connection_status(self, is_connected: bool):
+        """Update device connection status."""
+        self.is_connected = is_connected
+        # Recreate widgets to reflect new status
+        for widget in self.winfo_children():
+            widget.destroy()
+        self._create_widgets()

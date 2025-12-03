@@ -11,3 +11,13 @@
 [2025-12-04 00:24:55] ℹ️  [INFO] Speed set to 0
 [2025-12-04 00:24:55] 🐛 [DEBUG] Sending packet test: 7e07050301020310ef
 [2025-12-04 00:24:55] ❌ [ERROR] GATT CONN TIMEOUT when sending packet: GATT CONN TIMEOUT: write failed
+[2025-12-04 00:37:09] === LED CONTROL STARTED ===
+[2025-12-04 00:38:01] ℹ️  [INFO] Speed set to 255
+[2025-12-04 00:38:01] ℹ️  [INFO] Speed set to 0
+[2025-12-04 00:38:01] 🐛 [DEBUG] Sending packet test: 7e07050301020310ef
+[2025-12-04 00:38:01] ❌ [ERROR] GATT CONN TIMEOUT when sending packet: GATT CONN TIMEOUT: write failed
+[2025-12-04 00:45:56] ℹ️  [INFO] Speed set to 255
+[2025-12-04 00:45:56] ℹ️  [INFO] Speed set to 0
+[2025-12-04 00:45:56] 🐛 [DEBUG] Sending packet test: 7e07050301020310ef
+[2025-12-04 00:45:56] ❌ [ERROR] GATT CONN TIMEOUT when sending packet: GATT CONN TIMEOUT: write failed
+[2025-12-04 00:50:39] === LED CONTROL STARTED ===

@@ -508,7 +508,14 @@ class BleApplicationBridge:
             initial_speed=getattr(self.preferences, 'default_speed', 0x10)
         )
         
+        # Both callbacks supported for compatibility
         self.on_ui_update: Optional[Callable] = None
+        self.on_status_change: Optional[Callable] = None
+    
+    @property
+    def controller(self):
+        """Expose controller for direct access if needed."""
+        return self.ble_controller
     
     def initialize(self):
         """Initialize and start the application."""
@@ -552,6 +559,9 @@ class BleApplicationBridge:
     
     def _on_device_status_change(self, status: DeviceStatus):
         """Handle device status change."""
+        # Support both old and new callback signatures
+        if self.on_status_change:
+            self.on_status_change(status)
         if self.on_ui_update:
             self.on_ui_update(status)
     

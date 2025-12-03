@@ -1,9 +1,12 @@
 import customtkinter as ctk
+from components import ColorWheelPicker
+from models import ColorPreset, Color
 import asyncio
 import threading
 from bleak import BleakClient, BleakScanner
 import psutil
 import math
+import random
 import json
 import os
 from pathlib import Path
@@ -62,8 +65,11 @@ class BleController:
         self.client = None
         self.loop = asyncio.new_event_loop()
         self.mode = "MANUAL"
+        self.style = "CROSS_FADE"  # Default transition style
         self.running = True
         self.r, self.g, self.b = 0, 0, 0
+        # last actually sent color (for smooth transitions)
+        self._last_r, self._last_g, self._last_b = 0, 0, 0
         self.status_callback = status_callback 
         self.disconnect_requested = False
         # effect speed (0..255)
@@ -157,8 +163,63 @@ class BleController:
                                     await asyncio.sleep(0.5)
 
                             elif self.mode == "MANUAL":
-                                await self._send_color(self.r, self.g, self.b)
-                                await asyncio.sleep(0.1)
+                                # Handle transition styles when in MANUAL mode
+                                target = (int(self.r), int(self.g), int(self.b))
+                                # Map speed (0-255) to timing: higher speed -> faster transitions
+                                speed_norm = max(0, min(255, int(self.speed))) / 255.0
+
+                                if self.style == "CROSS_FADE":
+                                    # Smoothly interpolate from last sent color to target
+                                    last = (self._last_r, self._last_g, self._last_b)
+                                    if last != target:
+                                        duration = 0.2 + (1.0 - speed_norm) * 4.8  # 0.2 .. 5.0s
+                                        steps = max(2, int(duration / 0.05))
+                                        for i in range(1, steps + 1):
+                                            if self.mode != "MANUAL" or not client.is_connected:
+                                                break
+                                            t = i / steps
+                                            nr = int(last[0] + (target[0] - last[0]) * t)
+                                            ng = int(last[1] + (target[1] - last[1]) * t)
+                                            nb = int(last[2] + (target[2] - last[2]) * t)
+                                            await self._send_color(nr, ng, nb)
+                                            await asyncio.sleep(duration / steps)
+                                        self._last_r, self._last_g, self._last_b = target
+                                    else:
+                                        await asyncio.sleep(0.1)
+
+                                elif self.style == "GRADUAL_CHANGE":
+                                    # Sweep slowly through a rainbow using small steps
+                                    rainbow = [
+                                        (255, 0, 0), (255, 127, 0), (255, 255, 0),
+                                        (0, 255, 0), (0, 0, 255), (75, 0, 130), (148, 0, 211)
+                                    ]
+                                    interval = 0.2 + (1.0 - speed_norm) * 2.8  # 0.2 .. 3.0s per step
+                                    for col in rainbow:
+                                        if self.mode != "MANUAL" or not client.is_connected:
+                                            break
+                                        await self._send_color(*col)
+                                        await asyncio.sleep(interval)
+
+                                elif self.style == "STROBE_FLASH":
+                                    # Quick on/off flashing between target and off
+                                    flash_interval = max(0.02, 0.3 * (1.0 - speed_norm) + 0.02)  # faster with high speed
+                                    await self._send_color(*target)
+                                    await asyncio.sleep(0.02)
+                                    await self._send_color(0, 0, 0)
+                                    await asyncio.sleep(flash_interval)
+
+                                elif self.style == "JUMPING_CHANGE":
+                                    # Jump between random presets
+                                    presets = ColorPreset.default_presets()
+                                    chosen = random.choice(presets)
+                                    await self._send_color(*chosen.color.to_tuple())
+                                    interval = 0.2 + (1.0 - speed_norm) * 2.8
+                                    await asyncio.sleep(interval)
+
+                                else:
+                                    # Fallback: direct set
+                                    await self._send_color(*target)
+                                    await asyncio.sleep(0.1)
                                 
                 except Exception as e:
                     self.status_callback("CONNECTION LOST", "red")
@@ -235,6 +296,7 @@ class App(ctk.CTk):
         self.tab_main = self.tabs.add("PALETTE")
         self.tab_modes = self.tabs.add("MODES")
         self.tab_settings = self.tabs.add("SETTINGS")
+        self.tab_style = self.tabs.add("STYLE")
 
         # === ВКЛАДКА 1: ПАЛИТРА И СЛАЙДЕРЫ ===
         
@@ -245,33 +307,34 @@ class App(ctk.CTk):
         self.slider_bright.pack(pady=5, padx=10, fill="x")
 
         # Сетка пресетов (Кнопки)
+        # Presets frame (uses models.ColorPreset)
         self.preset_frame = ctk.CTkFrame(self.tab_main, fg_color="transparent")
-        self.preset_frame.pack(pady=15)
+        self.preset_frame.pack(pady=10)
 
-        presets = [
-            ("RED", "#FF0000", 255, 0, 0),
-            ("GREEN", "#00FF00", 0, 255, 0),
-            ("BLUE", "#0000FF", 0, 0, 255),
-            ("WHITE", "#FFFFFF", 255, 255, 255),
-            ("CYAN", "#00FFFF", 0, 255, 255),
-            ("MAGENTA", "#FF00FF", 255, 0, 255),
-            ("YELLOW", "#FFFF00", 255, 255, 0),
-            ("PURPLE", "#800080", 128, 0, 128),
-            ("ORANGE", "#FFA500", 255, 165, 0),
-        ]
-
+        preset_list = ColorPreset.default_presets()
         row = 0
         col = 0
-        for name, hex_col, r, g, b in presets:
-            btn = ctk.CTkButton(self.preset_frame, text="", width=40, height=40, 
+        for p in preset_list:
+            hex_col = p.color.to_hex()
+            r, g, b = p.color.to_tuple()
+            btn = ctk.CTkButton(self.preset_frame, text="", width=40, height=40,
                                 fg_color=hex_col, hover_color=hex_col,
                                 corner_radius=20,
                                 command=lambda r=r, g=g, b=b: self.apply_preset(r, g, b))
-            btn.grid(row=row, column=col, padx=10, pady=10)
+            btn.grid(row=row, column=col, padx=8, pady=8)
             col += 1
-            if col > 2:
+            if col > 4:
                 col = 0
                 row += 1
+
+        # Interactive color wheel
+        wheel_frame = ctk.CTkFrame(self.tab_main, fg_color="transparent")
+        wheel_frame.pack(pady=8)
+        try:
+            self.color_wheel = ColorWheelPicker(wheel_frame, size=220, on_color_change=self._on_wheel_color_change)
+            self.color_wheel.pack()
+        except Exception as e:
+            log_message(f"Color wheel init failed: {e}")
 
         # Hex Color Input
         ctk.CTkLabel(self.tab_main, text="HEX COLOR", font=("Arial", 10, "bold")).pack(pady=(10, 0))
@@ -336,6 +399,45 @@ class App(ctk.CTk):
 
         ctk.CTkButton(self.tab_settings, text="VIEW LOG FILE", fg_color="#333",
                       command=self.view_log).pack(pady=5, padx=20, fill="x")
+
+        # === ВКЛАДКА 4: СТИЛИ ПЕРЕХОДОВ ===
+        ctk.CTkLabel(self.tab_style, text="TRANSITION STYLES", font=("Impact", 18)).pack(pady=20)
+        
+        # Cross Fade (плавный переход)
+        style_frame_1 = ctk.CTkFrame(self.tab_style, fg_color="#2b2b2b", corner_radius=10)
+        style_frame_1.pack(pady=10, padx=15, fill="x")
+        ctk.CTkLabel(style_frame_1, text="💫 CROSS FADE", font=("Arial", 14, "bold")).pack(pady=5)
+        ctk.CTkLabel(style_frame_1, text="Smooth blend between colors", text_color="#999", font=("Arial", 10)).pack()
+        ctk.CTkSlider(style_frame_1, from_=0.1, to=5.0, command=lambda v: None).pack(pady=5, padx=10, fill="x")
+        ctk.CTkLabel(style_frame_1, text="Speed (s)", text_color="#666", font=("Arial", 9)).pack()
+        ctk.CTkButton(style_frame_1, text="APPLY", fg_color="#4CAF50", command=lambda: self.set_style("CROSS_FADE")).pack(pady=8)
+        
+        # Gradual Change (медленное плавное изменение)
+        style_frame_2 = ctk.CTkFrame(self.tab_style, fg_color="#2b2b2b", corner_radius=10)
+        style_frame_2.pack(pady=10, padx=15, fill="x")
+        ctk.CTkLabel(style_frame_2, text="🌈 GRADUAL CHANGE", font=("Arial", 14, "bold")).pack(pady=5)
+        ctk.CTkLabel(style_frame_2, text="Slow color sweep through spectrum", text_color="#999", font=("Arial", 10)).pack()
+        ctk.CTkSlider(style_frame_2, from_=0.5, to=10.0, command=lambda v: None).pack(pady=5, padx=10, fill="x")
+        ctk.CTkLabel(style_frame_2, text="Cycle Time (s)", text_color="#666", font=("Arial", 9)).pack()
+        ctk.CTkButton(style_frame_2, text="APPLY", fg_color="#2196F3", command=lambda: self.set_style("GRADUAL_CHANGE")).pack(pady=8)
+        
+        # Strobe Flash (вспышки)
+        style_frame_3 = ctk.CTkFrame(self.tab_style, fg_color="#2b2b2b", corner_radius=10)
+        style_frame_3.pack(pady=10, padx=15, fill="x")
+        ctk.CTkLabel(style_frame_3, text="⚡ STROBE FLASH", font=("Arial", 14, "bold")).pack(pady=5)
+        ctk.CTkLabel(style_frame_3, text="Instant on/off flashing effect", text_color="#999", font=("Arial", 10)).pack()
+        ctk.CTkSlider(style_frame_3, from_=0.05, to=1.0, command=lambda v: None).pack(pady=5, padx=10, fill="x")
+        ctk.CTkLabel(style_frame_3, text="Flash Rate (s)", text_color="#666", font=("Arial", 9)).pack()
+        ctk.CTkButton(style_frame_3, text="APPLY", fg_color="#FF9800", command=lambda: self.set_style("STROBE_FLASH")).pack(pady=8)
+        
+        # Jumping Change (скачкообразное изменение)
+        style_frame_4 = ctk.CTkFrame(self.tab_style, fg_color="#2b2b2b", corner_radius=10)
+        style_frame_4.pack(pady=10, padx=15, fill="x")
+        ctk.CTkLabel(style_frame_4, text="🎯 JUMPING CHANGE", font=("Arial", 14, "bold")).pack(pady=5)
+        ctk.CTkLabel(style_frame_4, text="Step-wise instant color changes", text_color="#999", font=("Arial", 10)).pack()
+        ctk.CTkSlider(style_frame_4, from_=0.2, to=3.0, command=lambda v: None).pack(pady=5, padx=10, fill="x")
+        ctk.CTkLabel(style_frame_4, text="Step Interval (s)", text_color="#666", font=("Arial", 9)).pack()
+        ctk.CTkButton(style_frame_4, text="APPLY", fg_color="#E91E63", command=lambda: self.set_style("JUMPING_CHANGE")).pack(pady=8)
 
     def create_rgb_slider(self, parent, text, color):
         ctk.CTkLabel(parent, text=text, text_color=color, font=("Arial", 12, "bold")).pack()
@@ -412,9 +514,25 @@ class App(ctk.CTk):
             self.hex_entry.delete(0, "end")
             self.hex_entry.insert(0, hex_color)
 
+    def _on_wheel_color_change(self, r: int, g: int, b: int):
+        """Handler for color wheel selection - update sliders and apply color."""
+        try:
+            # set sliders (raw values) then apply
+            self.slider_r.set(r)
+            self.slider_g.set(g)
+            self.slider_b.set(b)
+            self.on_rgb_change()
+        except Exception as e:
+            log_message(f"Wheel color apply failed: {e}")
+
     def set_mode(self, mode):
         self.ble.mode = mode
         log_message(f"Mode changed to: {mode}")
+
+    def set_style(self, style):
+        """Set transition style (CROSS_FADE, GRADUAL_CHANGE, STROBE_FLASH, JUMPING_CHANGE)."""
+        self.ble.style = style
+        log_message(f"Style changed to: {style}")
 
     def force_reconnect(self):
         self.ble.reconnect()
