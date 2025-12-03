@@ -6,6 +6,7 @@ Implements design system with custom widgets built on customtkinter.
 import customtkinter as ctk
 from typing import Callable, Optional, Tuple, List
 from enum import Enum
+import math
 
 
 class ColorScheme(Enum):
@@ -409,3 +410,193 @@ class DeviceDiscoveryList(ctk.CTkFrame):
         self.devices = []
         for widget in self.scroll_frame.winfo_children():
             widget.destroy()
+
+
+class ColorWheelPicker(ctk.CTkCanvas):
+    """Interactive HSV color wheel for intuitive color selection."""
+    
+    def __init__(self, parent, size: int = 300, on_color_change: Optional[Callable] = None, **kwargs):
+        """
+        Create interactive color wheel.
+        
+        Args:
+            parent: Parent widget
+            size: Canvas size (width=height)
+            on_color_change: Callback(r, g, b) when color selected
+        """
+        super().__init__(parent, width=size, height=size, bg="#1a1a1a", highlightthickness=0, **kwargs)
+        self.size = size
+        self.radius = size // 2 - 10
+        self.center = (size // 2, size // 2)
+        self.on_color_change = on_color_change
+        self.selected_hue = 0
+        self.selected_saturation = 0.5
+        self.selected_value = 1.0
+        self.picker_circle_radius = 8
+        
+        # Bind events
+        self.bind("<Button-1>", self._on_click)
+        self.bind("<B1-Motion>", self._on_drag)
+        self.bind("<MouseWheel>", self._on_wheel)  # Windows
+        self.bind("<Button-4>", self._on_wheel)    # Linux
+        self.bind("<Button-5>", self._on_wheel)    # Linux
+        
+        self._draw_wheel()
+    
+    def _on_click(self, event):
+        """Handle color wheel click."""
+        self._update_from_position(event.x, event.y)
+    
+    def _on_drag(self, event):
+        """Handle color wheel drag."""
+        self._update_from_position(event.x, event.y)
+    
+    def _on_wheel(self, event):
+        """Handle mouse wheel for brightness adjustment."""
+        if event.num == 5 or event.delta < 0:
+            self.selected_value = max(0.1, self.selected_value - 0.1)
+        else:
+            self.selected_value = min(1.0, self.selected_value + 0.1)
+        self._draw_wheel()
+        self._emit_color()
+    
+    def _update_from_position(self, x: int, y: int):
+        """Convert click position to HSV and update color."""
+        # Calculate distance from center
+        dx = x - self.center[0]
+        dy = y - self.center[1]
+        dist = math.sqrt(dx**2 + dy**2)
+        
+        # Clamp to wheel radius
+        if dist > self.radius:
+            dist = self.radius
+        
+        # Calculate hue (angle)
+        angle = math.atan2(dy, dx) * 180 / math.pi
+        self.selected_hue = (angle + 90) % 360
+        
+        # Calculate saturation (distance from center)
+        self.selected_saturation = max(0.0, min(1.0, dist / self.radius))
+        
+        self._draw_wheel()
+        self._emit_color()
+    
+    def _emit_color(self):
+        """Convert HSV to RGB and emit callback."""
+        if self.on_color_change:
+            r, g, b = self._hsv_to_rgb(self.selected_hue, self.selected_saturation, self.selected_value)
+            self.on_color_change(int(r), int(g), int(b))
+    
+    def _hsv_to_rgb(self, h: float, s: float, v: float) -> Tuple[float, float, float]:
+        """Convert HSV to RGB."""
+        c = v * s
+        x = c * (1 - abs((h / 60) % 2 - 1))
+        m = v - c
+        
+        if h < 60:
+            r, g, b = c, x, 0
+        elif h < 120:
+            r, g, b = x, c, 0
+        elif h < 180:
+            r, g, b = 0, c, x
+        elif h < 240:
+            r, g, b = 0, x, c
+        elif h < 300:
+            r, g, b = x, 0, c
+        else:
+            r, g, b = c, 0, x
+        
+        return ((r + m) * 255, (g + m) * 255, (b + m) * 255)
+    
+    def _rgb_to_hsv(self, r: float, g: float, b: float) -> Tuple[float, float, float]:
+        """Convert RGB (0-255) to HSV."""
+        r, g, b = r / 255, g / 255, b / 255
+        max_c = max(r, g, b)
+        min_c = min(r, g, b)
+        delta = max_c - min_c
+        
+        if delta == 0:
+            h = 0
+        elif max_c == r:
+            h = (60 * ((g - b) / delta) + 360) % 360
+        elif max_c == g:
+            h = (60 * ((b - r) / delta) + 120) % 360
+        else:
+            h = (60 * ((r - g) / delta) + 240) % 360
+        
+        s = 0 if max_c == 0 else delta / max_c
+        v = max_c
+        
+        return h, s, v
+    
+    def set_color(self, r: int, g: int, b: int):
+        """Set color from RGB values."""
+        h, s, v = self._rgb_to_hsv(r, g, b)
+        self.selected_hue = h
+        self.selected_saturation = s
+        self.selected_value = v
+        self._draw_wheel()
+    
+    def _draw_wheel(self):
+        """Draw the color wheel with gradient."""
+        self.delete("all")
+        
+        # Draw color wheel segments
+        segments = 360
+        for i in range(segments):
+            angle1 = i
+            angle2 = i + 1
+            r1, g1, b1 = self._hsv_to_rgb(angle1, 1.0, self.selected_value)
+            hex_color = f"#{int(r1):02x}{int(g1):02x}{int(b1):02x}"
+            
+            # Draw arc segment
+            self._draw_arc_segment(angle1, angle2, hex_color)
+        
+        # Draw selected position marker
+        if self.selected_saturation > 0 or self.selected_value > 0:
+            angle_rad = (self.selected_hue - 90) * math.pi / 180
+            x = self.center[0] + self.selected_saturation * self.radius * math.cos(angle_rad)
+            y = self.center[1] + self.selected_saturation * self.radius * math.sin(angle_rad)
+            
+            self.create_oval(
+                x - self.picker_circle_radius - 2, y - self.picker_circle_radius - 2,
+                x + self.picker_circle_radius + 2, y + self.picker_circle_radius + 2,
+                outline="white", width=2
+            )
+            self.create_oval(
+                x - self.picker_circle_radius, y - self.picker_circle_radius,
+                x + self.picker_circle_radius, y + self.picker_circle_radius,
+                outline="black", width=1
+            )
+        
+        # Draw center circle (value control)
+        value_color = f"#{int(self.selected_value * 255):02x}{int(self.selected_value * 255):02x}{int(self.selected_value * 255):02x}"
+        self.create_oval(
+            self.center[0] - 20, self.center[1] - 20,
+            self.center[0] + 20, self.center[1] + 20,
+            fill=value_color, outline="white", width=2
+        )
+        self.create_text(
+            self.center[0], self.center[1] + 35,
+            text=f"V: {int(self.selected_value * 100)}%",
+            fill="white", font=("Arial", 10)
+        )
+    
+    def _draw_arc_segment(self, angle1: float, angle2: float, color: str):
+        """Draw a segment of the color wheel."""
+        # Draw from center to edge
+        angle1_rad = (angle1 - 90) * math.pi / 180
+        angle2_rad = (angle2 - 90) * math.pi / 180
+        
+        x1 = self.center[0] + self.radius * math.cos(angle1_rad)
+        y1 = self.center[1] + self.radius * math.sin(angle1_rad)
+        x2 = self.center[0] + self.radius * math.cos(angle2_rad)
+        y2 = self.center[1] + self.radius * math.sin(angle2_rad)
+        
+        # Draw triangle from center to arc
+        self.create_polygon(
+            self.center[0], self.center[1],
+            x1, y1,
+            x2, y2,
+            fill=color, outline=color
+        )

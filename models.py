@@ -17,6 +17,14 @@ class ColorMode(str, Enum):
     RAINBOW = "RAINBOW"
 
 
+class TransitionStyle(str, Enum):
+    """Enum for color transition/animation styles."""
+    CROSS_FADE = "CROSS_FADE"           # Smooth blend between colors
+    GRADUAL_CHANGE = "GRADUAL_CHANGE"   # Slow color sweep
+    STROBE_FLASH = "STROBE_FLASH"       # Instant on/off flashing
+    JUMPING_CHANGE = "JUMPING_CHANGE"   # Step-wise color changes
+
+
 @dataclass
 class Color:
     """Immutable RGB color representation."""
@@ -152,17 +160,43 @@ class ColorPreset:
     
     @staticmethod
     def default_presets() -> List['ColorPreset']:
-        """Return standard color palette."""
+        """Return extended color palette (20+ presets)."""
         return [
-            ColorPreset("Red", Color(255, 0, 0), "Pure red"),
-            ColorPreset("Green", Color(0, 255, 0), "Pure green"),
-            ColorPreset("Blue", Color(0, 0, 255), "Pure blue"),
-            ColorPreset("White", Color(255, 255, 255), "Full brightness white"),
-            ColorPreset("Cyan", Color(0, 255, 255), "Cyan"),
-            ColorPreset("Magenta", Color(255, 0, 255), "Magenta"),
-            ColorPreset("Yellow", Color(255, 255, 0), "Yellow"),
-            ColorPreset("Purple", Color(128, 0, 128), "Dark purple"),
-            ColorPreset("Orange", Color(255, 165, 0), "Orange"),
+            # Primary colors
+            ColorPreset("🔴 Red", Color(255, 0, 0), "Pure red"),
+            ColorPreset("🟢 Green", Color(0, 255, 0), "Pure green"),
+            ColorPreset("🔵 Blue", Color(0, 0, 255), "Pure blue"),
+            ColorPreset("⚪ White", Color(255, 255, 255), "Full brightness white"),
+            
+            # Secondary colors
+            ColorPreset("🔷 Cyan", Color(0, 255, 255), "Cyan"),
+            ColorPreset("🔶 Magenta", Color(255, 0, 255), "Magenta"),
+            ColorPreset("🟡 Yellow", Color(255, 255, 0), "Yellow"),
+            
+            # Neon colors
+            ColorPreset("💜 Neon Purple", Color(191, 64, 191), "Bright neon purple"),
+            ColorPreset("💚 Neon Green", Color(0, 255, 127), "Neon green"),
+            ColorPreset("💙 Neon Blue", Color(0, 127, 255), "Neon blue"),
+            ColorPreset("❤️ Neon Red", Color(255, 64, 64), "Neon red"),
+            ColorPreset("💛 Neon Yellow", Color(255, 255, 0), "Bright neon yellow"),
+            ColorPreset("💗 Neon Pink", Color(255, 20, 147), "Deep pink"),
+            
+            # Pastel colors
+            ColorPreset("🌸 Pastel Pink", Color(255, 179, 214), "Soft pastel pink"),
+            ColorPreset("🌤️ Pastel Blue", Color(179, 205, 224), "Soft pastel blue"),
+            ColorPreset("🌼 Pastel Yellow", Color(255, 253, 208), "Soft pastel yellow"),
+            ColorPreset("🌿 Pastel Green", Color(195, 236, 201), "Soft pastel green"),
+            ColorPreset("🌷 Pastel Purple", Color(222, 179, 255), "Soft pastel purple"),
+            
+            # Metals & cool tones
+            ColorPreset("⚡ Electric", Color(0, 255, 200), "Electric cyan-green"),
+            ColorPreset("🔥 Sunset Orange", Color(255, 140, 0), "Sunset orange"),
+            ColorPreset("❄️ Ice Blue", Color(173, 216, 230), "Ice blue"),
+            
+            # Dark/accent colors  
+            ColorPreset("🖤 Dark Red", Color(139, 0, 0), "Dark red"),
+            ColorPreset("🤍 Silver", Color(192, 192, 192), "Silver"),
+            ColorPreset("⚫ Black", Color(0, 0, 0), "Off"),
         ]
 
 
