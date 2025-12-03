@@ -1,0 +1,10 @@
+[2025-12-04 00:19:52] === LED CONTROL STARTED ===
+[2025-12-04 00:19:55] Found device by MAC: ELK-BLEDOM
+[2025-12-04 00:19:55] Connecting to ELK-BLEDOM (FF:FF:10:69:5B:2A)
+[2025-12-04 00:19:58] BLE Connection established
+[2025-12-04 00:20:15] Mode changed to: CPU
+[2025-12-04 00:20:18] Mode changed to: BREATH
+[2025-12-04 00:20:19] Mode changed to: RAINBOW
+[2025-12-04 00:20:21] Mode changed to: RAINBOW
+[2025-12-04 00:20:24] Mode changed to: BREATH
+[2025-12-04 00:20:55] Preferences saved to config

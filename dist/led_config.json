@@ -1,0 +1,12 @@
+{
+  "target_mac": "FF:FF:10:69:5B:2A",
+  "write_char_uuid": "0000fff3-0000-1000-8000-00805f9b34fb",
+  "last_color": {
+    "r": 255,
+    "g": 0,
+    "b": 255
+  },
+  "brightness": 1.0,
+  "theme": "Dark",
+  "default_speed": 60
+}
