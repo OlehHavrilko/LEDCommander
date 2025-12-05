@@ -53,16 +53,16 @@ python main.py
 
 ## Сборка в EXE
 
-Проект поставляется с `main.spec` для PyInstaller:
+Используйте скрипт `build.py`:
 
 ```powershell
 # Установить PyInstaller (если не установлен)
 pip install pyinstaller
 
-# Собрать один файл
-pyinstaller --onefile main.spec
+# Собрать EXE
+python build.py
 
-# Артефакты появятся в ./dist/
+# Результат: dist/Commander.exe
 ```
 
 ## Конфигурация
@@ -136,15 +136,28 @@ pyinstaller --onefile main.spec
 
 ```
 ledcontrol/
-├── main.py                 # Основной файл (GUI + BLE контроллер)
-├── main.spec              # Конфиг для PyInstaller
-├── requirements.txt       # Зависимости
-├── README.md             # Этот файл
-├── led_config.json       # Сохраненные настройки (автогенерируется)
-├── led_control.log       # Лог файл (автогенерируется)
-├── build/                # Временные файлы сборки
-└── dist/                 # Готовый EXE (после сборки)
+├── core/                  # Бизнес-логика (независима от UI)
+│   ├── models.py         # Модели данных
+│   ├── services.py       # Сервисы (Config, Logger)
+│   ├── interfaces.py     # Абстрактный интерфейс драйверов
+│   ├── controller.py     # BLE контроллер
+│   └── drivers/          # Драйверы протоколов (ELK-BLEDOM, Triones, etc.)
+│
+├── ui/                    # Пользовательский интерфейс
+│   ├── main_window.py    # Главное окно
+│   ├── components.py     # UI компоненты
+│   └── viewmodels.py     # ViewModel (мост UI ↔ Core)
+│
+├── tests/                 # Тесты
+├── docs/                  # Документация
+│
+├── main.py               # Точка входа приложения
+├── build.py              # Скрипт сборки EXE
+├── requirements.txt      # Зависимости
+└── README.md             # Этот файл
 ```
+
+Подробнее см. [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md) и [docs/](docs/).
 
 ## Поиск и устранение неисправностей
 

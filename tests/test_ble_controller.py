@@ -2,8 +2,8 @@ import asyncio
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 
-from models import DeviceConfig, Color, ColorMode
-from ble_controller import BleDeviceController
+from core.models import DeviceConfig, Color, ColorMode
+from core.controller import BleDeviceController
 
 
 @pytest.mark.asyncio

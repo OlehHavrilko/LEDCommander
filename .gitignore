@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual Environment
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+led_control.log
+
+# Config (user-specific)
+led_config.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# PyInstaller
+*.spec
+!Commander.spec
+
+# Test artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Release
+release/
+dist.zip
+
+# Temporary
+*.tmp
+*.bak
+
